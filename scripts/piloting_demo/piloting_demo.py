@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 
 import rospy
 import smach
@@ -14,20 +14,7 @@ In this simple mission the robot reaches a predefined configuration, navigates t
 scans the environment and upon successful detection 
 """
 
-rospy.init_node('combined_mission_node')
-
-# File of prerecorded waypoint-base navigation missions
-navigation_file = ros_utils.get_param_safe("~mission_file")
-
-# Topic listening for the global planner goals
-move_base_topic = ros_utils.get_param_safe("~move_base_topic")
-
-# Topic where the base odometry is published. Used as reference for navigation
-odometry_topic = ros_utils.get_param_safe("~odometry_topic")
-
-# Parse the missions data
-missions_data = WaypointNavigation.read_missions_data(navigation_file)
-assert missions_data.has_key('detection')
+rospy.init_node('piloting_mission')
 
 
 # Build the state machine
@@ -66,10 +53,9 @@ with state_machine:
                            transitions={'Completed': 'EXECUTE_EE_TRAJECTORY',
                                         'Failure': 'Failure'})
 
-    # TODO(giuseppe) test with the global context
-    #smach.StateMachine.add('EXECUTE_EE_TRAJECTORY', RosControlPoseReaching(ns='execute_ee_trajectory'),
-    #                       transitions={'Completed': 'Success',
-    #                                    'Failure': 'Failure'})
+    smach.StateMachine.add('EXECUTE_EE_TRAJECTORY', RosControlPoseReaching(ns='execute_ee_trajectory'),
+                           transitions={'Completed': 'Success',
+                                        'Failure': 'Failure'})
 
 # Create and start the introspection server
 introspection_server = smach_ros.IntrospectionServer('mission_server', state_machine, '/mission_planner')
