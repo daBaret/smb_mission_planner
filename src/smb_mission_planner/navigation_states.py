@@ -8,6 +8,7 @@ from geometry_msgs.msg import PoseStamped
 from threading import Lock
 
 from smb_mission_planner.base_state_ros import BaseStateRos
+from smb_mission_planner.srv import BaseGoal, BaseGoalRequest
 from smb_mission_planner.utils import rocoma_utils
 
 """
@@ -253,3 +254,34 @@ class SingleNavGoalState(BaseStateRos):
             ang_tol_ok = (angle_to_waypoint <= self.tolerance_rad)
         self.base_pose_lock.release()
         return lin_tol_ok and ang_tol_ok and self.base_pose_received
+
+
+class SingleNavGoalServiceClientState(SingleNavGoalState):
+    """
+    Depends on a service to provide a goal for the base
+    """
+
+    def __init__(self, ns):
+        SingleNavGoalState.__init__(self, ns=ns)
+        nav_goal_service_name = self.get_scoped_param("nav_goal_service_name")
+        self.nav_goal_service_client = rospy.ServiceProxy(nav_goal_service_name, BaseGoal)
+
+    def execute(self, userdata):
+        try:
+            self.nav_goal_service_client.wait_for_service(10.0)
+        except rospy.ROSException as exc:
+            rospy.logerr(exc)
+            return 'Aborted'
+
+        req = BaseGoalRequest()
+        res = self.nav_goal_service_client.call(req)
+        if not res.success:
+            rospy.logerr("Failed to get base goal.")
+            return 'Aborted'
+
+        success = self.reach_goal(res.goal)
+        if not success:
+            rospy.logerr("Failed to reach base goal.")
+            return 'Aborted'
+
+        return 'Completed'

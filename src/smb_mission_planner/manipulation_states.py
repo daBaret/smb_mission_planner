@@ -1,8 +1,9 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
+
 import rospy
 import actionlib
 from geometry_msgs.msg import PoseStamped
-from control_msgs.msg import GripperCommandAction, GripperCommandActionGoal
+from control_msgs.msg import GripperCommandAction, GripperCommandGoal
 
 from smb_mission_planner.utils import MoveItPlanner
 from smb_mission_planner.base_state_ros import BaseStateRos
@@ -17,7 +18,7 @@ class RosControlPoseReaching(BaseStateRos):
     """
     Switch and send target poses to the controller manager
     """
-    def __init__(self, ns=""):
+    def __init__(self, ns):
         BaseStateRos.__init__(self,
                               outcomes=['Completed', 'Failure'],
                               input_keys=['reset'],
@@ -143,13 +144,13 @@ class GripperControl(BaseStateRos):
         self.tolerance = self.get_scoped_param("tolerance")
         self.server_timeout = self.get_scoped_param("timeout")
 
-        self.gripper_cmd = GripperCommandActionGoal()
-        self.gripper_cmd.header.stamp = rospy.get_rostime()
-        self.gripper_cmd.goal.command.position = self.position
-        self.gripper_cmd.goal.command.max_effort = self.max_effort
+        self.gripper_cmd = GripperCommandGoal()
+
+        self.gripper_cmd.command.position = self.position
+        self.gripper_cmd.command.max_effort = self.max_effort
 
         self.gripper_action_name = self.get_scoped_param("gripper_action_name")
-        self.gripper_client = actionlib.ActionClient(self.gripper_action_name, GripperCommandAction)
+        self.gripper_client = actionlib.SimpleActionClient(self.gripper_action_name, GripperCommandAction)
 
     def execute(self, ud):
 
@@ -157,13 +158,16 @@ class GripperControl(BaseStateRos):
             rospy.logerr("Timeout exceeded while waiting for {} server".format(self.gripper_action_name))
             return 'Failure'
 
-        handle = self.gripper_client.send_goal(self.gripper_cmd)
-        result = handle.get_result().result
+        self.gripper_client.send_goal(self.gripper_cmd)
+        if not self.gripper_client.wait_for_result(rospy.Duration(self.server_timeout)):
+            rospy.logerr("Timeout exceeded while waiting the gripper action to complete")
+            return 'Aborted'
 
+        result = self.gripper_client.get_result()
         error = abs(result.position - self.position)
         tolerance_met = error < self.tolerance
 
-        success = False
+        success = True
         if result is None:
             rospy.logerr("None received from the gripper server")
             success = False
@@ -172,12 +176,12 @@ class GripperControl(BaseStateRos):
             success = False
         elif result.stalled and tolerance_met:
             rospy.logerr("Gripper stalled and not moving, position error {} is smaller than tolerance".format(error))
-            success  = True
+            success = True
         elif result.reached_goal:
             rospy.loginfo("Gripper successfully reached the goal")
             success = True
 
         if success:
-            return 'Failure'
-        else:
             return 'Completed'
+        else:
+            return 'Failure'

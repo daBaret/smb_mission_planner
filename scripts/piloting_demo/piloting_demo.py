@@ -3,15 +3,13 @@
 import rospy
 import smach
 import smach_ros
-from smb_mission_planner.navigation_states import WaypointNavigation
+from smb_mission_planner.valve_opening_mission.valve_opening_states import PreGraspState, ValveDetectionState, \
+    ManipulateValve
+from smb_mission_planner.navigation_states import SingleNavGoalServiceClientState
 from smb_mission_planner.manipulation_states import *
-from smb_mission_planner.detection_states import ObjectDetectionWithService
 
-from smb_mission_planner.utils import ros_utils
 """
-Example script of a mission which combines navigation and manipulator controller through the moveit interface
-In this simple mission the robot reaches a predefined configuration, navigates to a predefined goal, 
-scans the environment and upon successful detection 
+Implementation of the state machine for the PILOTING demo
 """
 
 rospy.init_node('piloting_mission')
@@ -24,36 +22,32 @@ with state_machine:
                            transitions={'Completed': 'REACH_DETECTION_HOTSPOT',
                                         'Failure': 'Failure'})
 
-    smach.StateMachine.add('REACH_DETECTION_HOTSPOT', WaypointNavigation(missions_data['detection'],
-                                                                         waypoint_pose_topic=move_base_topic,
-                                                                         base_pose_topic=odometry_topic,
-                                                                         ns="reach_detection_hotspot"),
+    smach.StateMachine.add('REACH_DETECTION_HOTSPOT', SingleNavGoalServiceClientState(ns="reach_detection_hotspot"),
                            transitions={'Completed': 'DETECT',
-                                        'Aborted': 'Failure',
-                                        'Next Waypoint': 'REACH_DETECTION_HOTSPOT'})
+                                        'Aborted': 'Failure'})
 
-    smach.StateMachine.add('DETECT', ObjectDetectionWithService(max_num_failure=3, ns='detect'),
-                           transitions={'Completed': 'Success',
-                                        'Failure': 'Failure',
+    smach.StateMachine.add('DETECT', ValveDetectionState(max_num_failure=3, ns='valve_detection'),
+                           transitions={'Completed': 'OPEN_GRIPPER',
+                                        'Aborted': 'Failure',
                                         'Retry': 'NEW_VIEWPOINT'})
 
-    smach.StateMachine.add('NEW_VIEWPOINT', JointsConfigurationVisitor(ns='new_viewpoint'),
+    smach.StateMachine.add('NEW_VIEWPOINT', JointsConfigurationVisitor(ns='viewpoint_visitor'),
                            transitions={'Completed': 'DETECT',
                                         'Failure': 'Failure'})
 
     smach.StateMachine.add('OPEN_GRIPPER', GripperControl(ns='open_gripper'),
-                           transitions={'Completed': 'REACH_GRASP',
+                           transitions={'Completed': 'PRE_GRASP',
                                         'Failure': 'Failure'})
 
-    smach.StateMachine.add('REACH_GRASP', MoveItPoseReaching(ns='reach_grasp'),
+    smach.StateMachine.add('PRE_GRASP', PreGraspState(ns='pre_grasp'),
                            transitions={'Completed': 'CLOSE_GRIPPER',
                                         'Failure': 'Failure'})
 
-    smach.StateMachine.add('CLOSE_GRIPPER', JointsConfigurationVisitor(ns='close_gripper'),
-                           transitions={'Completed': 'EXECUTE_EE_TRAJECTORY',
+    smach.StateMachine.add('CLOSE_GRIPPER', GripperControl(ns='close_gripper'),
+                           transitions={'Completed': 'MANIPULATE_VALVE',
                                         'Failure': 'Failure'})
 
-    smach.StateMachine.add('EXECUTE_EE_TRAJECTORY', RosControlPoseReaching(ns='execute_ee_trajectory'),
+    smach.StateMachine.add('MANIPULATE_VALVE', ManipulateValve(ns='manipulate_valve'),
                            transitions={'Completed': 'Success',
                                         'Failure': 'Failure'})
 

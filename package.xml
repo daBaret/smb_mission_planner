@@ -22,6 +22,7 @@
   <exec_depend>smach_viewer</exec_depend>
 
   <depend>std_msgs</depend>
+  <depend>std_srvs</depend>
   <depend>geometry_msgs</depend>
   <depend>controller_manager_msgs</depend>
   <depend>control_msgs</depend>
