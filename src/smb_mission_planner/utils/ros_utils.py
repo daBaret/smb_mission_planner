@@ -37,6 +37,8 @@ def switch_ros_controller(controller_name, manager_namespace='', whitelist=[]):
     controller_stop_list = list(controller_set - whitelist_set)
     controller_start_list = [controller_name]
 
+    rospy.loginfo("Stopping controllers: {}".format(controller_stop_list))
+    rospy.loginfo("Starting controllers: {}".format(controller_starrt_list))
     switch_controller_service_name = os.path.join(manager_namespace, "controller_manager", "switch_controllers")
     try:
         rospy.wait_for_service(list_controller_service_name, timeout=2.0)
@@ -57,4 +59,5 @@ def switch_ros_controller(controller_name, manager_namespace='', whitelist=[]):
         rospy.logerr("Failed to switch ros controller")
         return False
 
+    rospy.loginfo("Successfully switched controllers")
     return True

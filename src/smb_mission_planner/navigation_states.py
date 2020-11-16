@@ -267,6 +267,9 @@ class SingleNavGoalServiceClientState(SingleNavGoalState):
         self.nav_goal_service_client = rospy.ServiceProxy(nav_goal_service_name, BaseGoal)
 
     def execute(self, userdata):
+        if self.default_outcome:
+            return self.default_outcome
+
         try:
             self.nav_goal_service_client.wait_for_service(10.0)
         except rospy.ROSException as exc:
