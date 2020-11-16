@@ -2,8 +2,10 @@
 import rospy
 from std_srvs.srv import Empty, EmptyResponse
 
-from geometry_msgs.msg import PoseStamped
+from cpt_pointlaser_msgs.srv import HighAccuracyLocalizationResponse, HighAccuracyLocalization
+from geometry_msgs.msg import PoseStamped, Pose
 from rocoma_msgs.srv import SwitchControllerResponse, SwitchController
+from mabi_speedy12_msgs.srv import DesiredWrenchCurrentEEFrameReference, DesiredWrenchCurrentEEFrameReferenceResponse
 
 
 def planner_callback(msg):
@@ -34,6 +36,14 @@ def switch_roco_controller_service(req):
     return res
 
 
+def switch_sub_roco_controller_service(req):
+    rospy.sleep(1.0)
+    rospy.loginfo("Switching to controller: " + str(req.name))
+    res = SwitchControllerResponse()
+    res.status = res.STATUS_SWITCHED
+    return res
+
+
 def hal_data_callback(_):
     rospy.loginfo("Received a hal data collection request. Sleeping 1.0 sec and returning")
     rospy.sleep(1.0)
@@ -43,15 +53,18 @@ def hal_data_callback(_):
 def hal_optimization_callback(_):
     rospy.loginfo("Received a hal data collection request. Sleeping 1.0 sec and then sending the update")
     rospy.sleep(1.0)
-    hal_update = PoseStamped()
-    hal_update_publisher.publish(hal_update)
-    return EmptyResponse()
+    hal_response = HighAccuracyLocalizationResponse()
+    hal_response.corrected_base_pose_in_world = Pose()
+    return hal_response
 
 
-def confusor_callback(_):
-    rospy.loginfo("Received a confusor update request. Sleeping 1.0 sec and returning")
+def set_wrench_callback(req):
+    rospy.loginfo("Requested to set new wrench: {}.\nSleeping for 1.0 sec and returning".format(req))
     rospy.sleep(1.0)
-    return EmptyResponse()
+    res = DesiredWrenchCurrentEEFrameReferenceResponse()
+    res.success = True
+    res.message = "Reference set has been set."
+    return res
 
 
 if __name__ == "__main__":
@@ -63,12 +76,11 @@ if __name__ == "__main__":
 
     ee_goal_topic = rospy.get_param("~ee_goal_topic")
     controller_manager_ns = rospy.get_param("~controller_manager_namespace", "/smb_highlevel_controller")
+    sub_controller_manager_ns = rospy.get_param("~sub_controller_manager_namespace", "/smb_highlevel_controller")
 
     hal_optimization_service_name = rospy.get_param("~hal_optimization_service_name")
     hal_data_collection_service_name = rospy.get_param("~hal_data_collection_service_name")
-    hal_update_topic_name = rospy.get_param("~hal_update_topic_name")
-
-    confusor_service_name = rospy.get_param("~confusor_service_name")
+    wrench_service_name = rospy.get_param("~wrench_service_name")
 
     nav_goal_subscriber = rospy.Subscriber(nav_goal_topic, PoseStamped, planner_callback, queue_size=10)
     ee_goal_subscriber = rospy.Subscriber(ee_goal_topic, PoseStamped, controller_callback, queue_size=10)
@@ -78,11 +90,13 @@ if __name__ == "__main__":
     roco_service = rospy.Service(controller_manager_ns + "/controller_manager/switch_controller",
                                  SwitchController,
                                  switch_roco_controller_service)
+    sub_roco_service = rospy.Service(
+        sub_controller_manager_ns + "/controller_manager/switch_controller",
+        SwitchController, switch_sub_roco_controller_service)
 
-    hal_update_publisher = rospy.Publisher(hal_update_topic_name, PoseStamped, queue_size=1)
     hal_data_service = rospy.Service(hal_data_collection_service_name, Empty, hal_data_callback)
-    hal_optm_service = rospy.Service(hal_optimization_service_name, Empty, hal_optimization_callback)
-    confusor_service = rospy.Service(confusor_service_name, Empty, confusor_callback)
+    hal_optm_service = rospy.Service(hal_optimization_service_name, HighAccuracyLocalization, hal_optimization_callback)
+    wrench_service = rospy.Service(wrench_service_name, DesiredWrenchCurrentEEFrameReference, set_wrench_callback)
 
     # Spin
     rospy.spin()
