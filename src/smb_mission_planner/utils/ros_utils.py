@@ -25,23 +25,22 @@ def switch_ros_controller(controller_name, manager_namespace='', whitelist=[]):
         rospy.logerr("Failed to call {}".format(list_controller_service_name))
         return False
 
+    # stop all controllers running and not in the whitelist
+    controller_stop_list = []
+    controller_start_list = [controller_name]
+
     list_service_client = rospy.ServiceProxy(list_controller_service_name, ListControllers)
     req = ListControllersRequest()
     res = list_service_client.call(req)
-    res = ListControllersResponse()
-
-    # stop all controllers running which are not in the whitelist and not the controller we want to switch to
-    whitelist.append(controller_name)
-    whitelist_set = set(whitelist)
-    controller_set = set(res.controller)
-    controller_stop_list = list(controller_set - whitelist_set)
-    controller_start_list = [controller_name]
+    for controller in res.controller:
+        if controller.name not in whitelist and controller.state == "running" and controller not in controller_start_list:
+            controller_stop_list.append(controller.name)
 
     rospy.loginfo("Stopping controllers: {}".format(controller_stop_list))
-    rospy.loginfo("Starting controllers: {}".format(controller_starrt_list))
-    switch_controller_service_name = os.path.join(manager_namespace, "controller_manager", "switch_controllers")
+    rospy.loginfo("Starting controllers: {}".format(controller_start_list))
+    switch_controller_service_name = os.path.join(manager_namespace, "controller_manager", "switch_controller")
     try:
-        rospy.wait_for_service(list_controller_service_name, timeout=2.0)
+        rospy.wait_for_service(switch_controller_service_name, timeout=2.0)
     except rospy.ROSException as exc:
         rospy.logerr("Failed to call {}".format(switch_controller_service_name))
         return False

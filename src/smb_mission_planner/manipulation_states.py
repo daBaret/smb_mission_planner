@@ -22,10 +22,9 @@ class RosControlPoseReaching(BaseStateRos):
     """
     Switch and send target poses to the controller manager
     """
-    def __init__(self, ns):
+    def __init__(self, ns, outcomes=['Completed', 'Failure']):
         BaseStateRos.__init__(self,
-                              outcomes=['Completed', 'Failure'],
-                              input_keys=['reset'],
+                              outcomes=outcomes,
                               ns=ns)
 
         self.controller_name = self.get_scoped_param("controller_name")
@@ -34,8 +33,8 @@ class RosControlPoseReaching(BaseStateRos):
 
     def do_switch(self):
         return switch_ros_controller(controller_name=self.controller_name,
-                                              manager_namespace=self.manager_namespace,
-                                              whitelist=self.whitelist)
+                                     manager_namespace=self.manager_namespace,
+                                     whitelist=self.whitelist)
 
 
     def execute(self, ud):
@@ -135,14 +134,14 @@ class MoveItVertical(MoveItNamedPositionReaching):
         MoveItNamedPositionReaching.__init__(self, "vertical", ns=ns)
 
 
-class GripperControl(BaseStateRos):
+class GripperControl(RosControlPoseReaching):
     """
     This state controls the gripper through the GripperCommandAction
     """
     def __init__(self, ns=""):
-        BaseStateRos.__init__(self,
-                              outcomes=['Completed', 'Failure'],
-                              ns=ns)
+        RosControlPoseReaching.__init__(self,
+                                        outcomes=['Completed', 'Failure'],
+                                        ns=ns)
 
         self.position = self.get_scoped_param("position")
         self.max_effort = self.get_scoped_param("max_effort")
@@ -158,6 +157,11 @@ class GripperControl(BaseStateRos):
         self.gripper_client = actionlib.SimpleActionClient(self.gripper_action_name, GripperCommandAction)
 
     def execute(self, ud):
+        if self.default_outcome:
+            return self.default_outcome
+
+        if not self.do_switch():
+            return 'Failure'
 
         if not self.gripper_client.wait_for_server(rospy.Duration(self.server_timeout)):
             rospy.logerr("Timeout exceeded while waiting for {} server".format(self.gripper_action_name))
@@ -187,6 +191,7 @@ class GripperControl(BaseStateRos):
             success = True
 
         if success:
+            rospy.sleep(2.0)  # just for safety 
             return 'Completed'
         else:
             return 'Failure'

@@ -10,9 +10,9 @@ class ObjectDetection(BaseStateRos):
     """
     Basic detection states which will output to retry until the maximum number of allowed failure is reached
     """
-    def __init__(self, max_num_failure=1, ns=""):
+    def __init__(self, max_num_failure=1, ns="", outcomes=['Completed', 'Aborted', 'Retry']):
         BaseStateRos.__init__(self,
-                              outcomes=['Completed', 'Aborted', 'Retry'],
+                              outcomes=outcomes,
                               ns=ns)
 
         self.current_failures = 0
