@@ -167,6 +167,8 @@ class GripperControl(RosControlPoseReaching):
             rospy.logerr("Timeout exceeded while waiting for {} server".format(self.gripper_action_name))
             return 'Failure'
 
+        # TODO(giuseppe) remove hack --> kinova takes time to switch to highlevel mode
+        rospy.sleep(1.0)
         self.gripper_client.send_goal(self.gripper_cmd)
         if not self.gripper_client.wait_for_result(rospy.Duration(self.server_timeout)):
             rospy.logerr("Timeout exceeded while waiting the gripper action to complete")

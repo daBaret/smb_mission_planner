@@ -25,15 +25,19 @@ def switch_ros_controller(controller_name, manager_namespace='', whitelist=[]):
         rospy.logerr("Failed to call {}".format(list_controller_service_name))
         return False
 
+    rospy.loginfo("Starting the controller {}".format(controller_name))
     # stop all controllers running and not in the whitelist
     controller_stop_list = []
-    controller_start_list = [controller_name]
+    controller_start_list = []
 
     list_service_client = rospy.ServiceProxy(list_controller_service_name, ListControllers)
     req = ListControllersRequest()
     res = list_service_client.call(req)
     for controller in res.controller:
-        if controller.name not in whitelist and controller.state == "running" and controller not in controller_start_list:
+        rospy.loginfo("Controller {}, state={}".format(controller.name, controller.state))
+        if controller.name == controller_name and controller.state != "running":
+            controller_start_list.append(controller.name)
+        elif controller.name not in whitelist and controller.state == "running" and controller.name != controller_name:
             controller_stop_list.append(controller.name)
 
     rospy.loginfo("Stopping controllers: {}".format(controller_stop_list))
