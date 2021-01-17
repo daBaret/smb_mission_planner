@@ -59,7 +59,7 @@ def generate_wall_path(offset, xn, yn, frame_id="world"):
 
     # Rotate plane
     points_rotated = R.dot(points)
-    rot = Rotation.from_dcm(R)
+    rot = Rotation.from_matrix(R)
     rot_quat = rot.as_quat()
 
     path = Path()

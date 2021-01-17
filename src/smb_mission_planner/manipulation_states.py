@@ -8,7 +8,7 @@ from nav_msgs.msg import Path
 from geometry_msgs.msg import PoseStamped
 from control_msgs.msg import GripperCommandAction, GripperCommandGoal
 
-from smb_mission_planner.utils import MoveItPlanner
+from smb_mission_planner.utils.moveit_utils import MoveItPlanner
 from smb_mission_planner.base_state_ros import BaseStateRos
 from smb_mission_planner.utils.ros_utils import switch_ros_controller
 from smb_mission_planner.utils import rocoma_utils

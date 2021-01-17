@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 from moveit_msgs.msg import Constraints, OrientationConstraint
-
+from moveit_msgs.msg import MoveItErrorCodes
 import os
 import sys
 import rospy
@@ -82,10 +82,14 @@ class MoveItPlanner(object):
         rospy.loginfo("Going to named target " + target)
         # Set the target
         self.arm_group.set_named_target(target)
-        # Plan the trajectory
-        planned_path1 = self.arm_group.plan()
+        # Plan the trajectory. Returned tuple of which second element only is the path to send
+        plan = self.arm_group.plan()
+        if plan[0] != MoveItErrorCodes.SUCCESS:
+            return False
+
+        planned_path = plan[1]
         # Execute the trajectory and block while it's not finished
-        return self.arm_group.execute(planned_path1, wait=True)
+        return self.arm_group.execute(planned_path, wait=True)
 
     def reach_joint_angles(self, joint_positions, tolerance):
         """
