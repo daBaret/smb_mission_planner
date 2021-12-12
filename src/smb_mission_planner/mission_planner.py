@@ -12,13 +12,13 @@ import smb_mission_planner.mission_plan
 
 
 class MissionPlanner():
-    def __init__(self, yaml_file_path, waypoint_topic_name, base_pose_topic_name):
+    def __init__(self, yaml_file_path, waypoint_topic_name, base_pose_topic_name, waypoint_frame):
         # Read missions data.
         self.yaml_file_path = yaml_file_path
         self.readMissionsData()
 
         self.topic_names = {'waypoint': waypoint_topic_name,
-        'base_pose': base_pose_topic_name}
+        'base_pose': base_pose_topic_name, 'waypoint_frame': waypoint_frame}
 
         self.main()
 
