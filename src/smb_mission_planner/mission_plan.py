@@ -44,7 +44,7 @@ class DefaultMission(smach.State):
 
         self.countdown_s = 60
         self.countdown_decrement_s = 1
-        self.distance_to_waypoint_tolerance_m = 0.6
+        self.distance_to_waypoint_tolerance_m = 0.5
         self.angle_to_waypoint_tolerance_rad = 0.7
 
     def execute(self, userdata):
