@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from numpy.core.numeric import roll
 import smach
 import rospy
 import tf
@@ -8,6 +9,9 @@ import smach_ros
 from geometry_msgs.msg import PoseStamped
 from nav_msgs.msg import Odometry
 import math
+from tf.transformations import euler_from_quaternion
+import tf2_ros
+from geometry_msgs.msg import Quaternion
 
 class MissionPlan():
     def __init__(self, missions_data, topic_names):
@@ -30,21 +34,20 @@ class DefaultMission(smach.State):
         self.mission_data = mission_data
         self.waypoint_idx = 0
         self.topic_names = topic_names
+        
+        # Initialize tf listener
+        self.tfBuffer = tf2_ros.Buffer()
+        self.listener = tf2_ros.TransformListener(self.tfBuffer)
 
         self.waypoint_pose_publisher = rospy.Publisher(topic_names['waypoint'], PoseStamped, queue_size=1)
-        self.base_pose_subscriber = rospy.Subscriber(topic_names['base_pose'], Odometry, self.basePoseCallback)
         while self.waypoint_pose_publisher.get_num_connections() == 0 and not rospy.is_shutdown():
             rospy.loginfo_once("Waiting for subscriber to connect to '" +
                           topic_names['waypoint'] + "'.")
             rospy.sleep(1)
-        while self.base_pose_subscriber.get_num_connections() == 0 and not rospy.is_shutdown():
-            rospy.loginfo_once("Waiting for publisher to connect to '" +
-                          topic_names['base_pose'] + "'.")
-            rospy.sleep(1)
 
         self.countdown_s = 60
         self.countdown_decrement_s = 1
-        self.distance_to_waypoint_tolerance_m = 0.5
+        self.distance_to_waypoint_tolerance_m = 0.8
         self.angle_to_waypoint_tolerance_rad = 0.7
 
     def execute(self, userdata):
@@ -100,23 +103,18 @@ class DefaultMission(smach.State):
         self.waypoint_y_m = y_m
         self.waypoint_yaw_rad = yaw_rad
 
-    def basePoseCallback(self, Odometry_msg):
-        rospy.loginfo_once("Estimated base pose received from now on.")
-
-        x_m = Odometry_msg.pose.pose.position.x
-        y_m = Odometry_msg.pose.pose.position.y
-        quaternion = Odometry_msg.pose.pose.orientation
-        explicit_quat = [quaternion.x, quaternion.y, quaternion.z, quaternion.w]
-        roll_rad, pitch_rad, yaw_rad = tf.transformations.euler_from_quaternion(explicit_quat)
-
-        self.estimated_x_m = x_m
-        self.estimated_y_m = y_m
-        self.estimated_yaw_rad = yaw_rad
-
     def reachedWaypointWithTolerance(self):
         try:
-            distance_to_waypoint = math.sqrt(pow(self.waypoint_x_m - self.estimated_x_m, 2) + pow(self.waypoint_y_m - self.estimated_y_m, 2))
-            angle_to_waypoint = abs(self.waypoint_yaw_rad - self.estimated_yaw_rad)
+            try:
+                trans = self.tfBuffer.lookup_transform('base_link', 'world', rospy.Time())
+            except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
+                print("Could not look up Transform")
+            position_x = trans.transform.translation.x
+            position_y = trans.transform.translation.y
+            q = (trans.transform.rotation.x, trans.transform.rotation.y, trans.transform.rotation.z, trans.transform.rotation.w)
+            roll, pitch, yaw = euler_from_quaternion(q)
+            distance_to_waypoint = math.sqrt(pow(self.waypoint_x_m + position_x, 2) + pow(self.waypoint_y_m + position_y, 2))
+            angle_to_waypoint = abs(self.waypoint_yaw_rad + yaw)
             distance_to_waypoint_satisfied = (distance_to_waypoint <= self.distance_to_waypoint_tolerance_m)
             angle_to_waypoint_satisfied = (angle_to_waypoint <= self.angle_to_waypoint_tolerance_rad)
             # rospy.loginfo(distance_to_waypoint)

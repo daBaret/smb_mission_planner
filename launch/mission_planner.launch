@@ -3,7 +3,7 @@
   <arg name="config_file_path" default="$(find smb_mission_planner)/configs/my_config.yaml"/>
   <arg name="waypoint_topic_name" default="/move_base_simple/goal"/>
   <arg name="base_pose_topic_name" default="/michelangelo/odometry_controller/odom"/>
-  <arg name="waypoint_frame" default="odom"/>
+  <arg name="waypoint_frame" default="world"/>
   <arg name="enable_viewer" default="false"/>
 
   <node pkg="smb_mission_planner"
