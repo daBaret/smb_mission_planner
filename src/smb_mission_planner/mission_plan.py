@@ -45,10 +45,10 @@ class DefaultMission(smach.State):
                           topic_names['waypoint'] + "'.")
             rospy.sleep(1)
 
-        self.countdown_s = 60
-        self.countdown_decrement_s = 1
-        self.distance_to_waypoint_tolerance_m = 0.8
-        self.angle_to_waypoint_tolerance_rad = 0.7
+        self.countdown_s = rospy.get_param('settings/skip_countdown', 60)
+        self.countdown_decrement_s = rospy.get_param('settings/skip_countdown_decrement', 1)
+        self.distance_to_waypoint_tolerance_m = rospy.get_param('settings/distance_tolerance', 0.6)
+        self.angle_to_waypoint_tolerance_rad = rospy.get_param('settings/angle_tolerance', 0.7)
 
     def execute(self, userdata):
         if(self.waypoint_idx >= len(self.mission_data.keys())):

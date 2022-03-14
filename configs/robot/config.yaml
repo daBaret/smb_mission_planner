@@ -1,0 +1,9 @@
+frames:
+  base: base_link
+  world: odom
+
+settings:
+  distance_tolerance: 0.6
+  angle_tolerance: 0.7
+  skip_countdown: 60
+  skip_countdown_decrement: 1

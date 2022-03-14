@@ -1,25 +1,17 @@
 <?xml version="1.0"?>
 <launch>
-  <arg name="config_file_path" default="$(find smb_mission_planner)/configs/my_config.yaml"/>
-  <arg name="waypoint_topic_name" default="/move_base_simple/goal"/>
-  <arg name="base_pose_topic_name" default="/michelangelo/odometry_controller/odom"/>
-  <arg name="waypoint_frame" default="world"/>
-  <arg name="enable_viewer" default="false"/>
+  <arg name="config_file_path" default="$(find smb_mission_planner)/configs/missions/my_config.yaml" />
+  <arg name="waypoint_topic_name" default="/move_base_simple/goal" />
+  <arg name="base_pose_topic_name" default="/camera/odom/sample " />
+  <arg name="waypoint_frame" default="odom" />
+  <arg name="enable_viewer" default="false" />
 
-  <node pkg="smb_mission_planner"
-        type="mission_planner_node.py"
-        name="mission_planner_node"
-        output="screen"
-        args="$(arg config_file_path) $(arg waypoint_topic_name) $(arg base_pose_topic_name) $(arg waypoint_frame)">
+  <node pkg="smb_mission_planner" type="mission_planner_node.py" name="mission_planner_node" output="screen" args="$(arg config_file_path) $(arg waypoint_topic_name) $(arg base_pose_topic_name) $(arg waypoint_frame)">
+    <rosparam file="$(find smb_mission_planner)/configs/robot/config.yaml" command="load" />
   </node>
 
   <group if="$(arg enable_viewer)">
-    <node pkg="smach_viewer"
-      type="smach_viewer.py"
-      name="smach_viewer_node"
-      output="screen"
-      args="">
-    </node>
+    <node pkg="smach_viewer" type="smach_viewer.py" name="smach_viewer_node" output="screen" args=""></node>
   </group>
 
 </launch>
