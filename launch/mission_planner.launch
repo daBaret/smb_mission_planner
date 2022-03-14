@@ -1,13 +1,12 @@
 <?xml version="1.0"?>
 <launch>
-  <arg name="config_file_path" default="$(find smb_mission_planner)/configs/missions/my_config.yaml" />
-  <arg name="waypoint_topic_name" default="/move_base_simple/goal" />
-  <arg name="base_pose_topic_name" default="/camera/odom/sample " />
-  <arg name="waypoint_frame" default="odom" />
-  <arg name="enable_viewer" default="false" />
+  <arg name="mission_file_path" default="$(find smb_mission_planner)/configs/missions/mission.yaml" />
+  <arg name="config_file_path" default="$(find smb_mission_planner)/configs/robot/config.yaml" />
 
-  <node pkg="smb_mission_planner" type="mission_planner_node.py" name="mission_planner_node" output="screen" args="$(arg config_file_path) $(arg waypoint_topic_name) $(arg base_pose_topic_name) $(arg waypoint_frame)">
-    <rosparam file="$(find smb_mission_planner)/configs/robot/config.yaml" command="load" />
+  <arg name="enable_viewer" default="false"/>
+
+  <node pkg="smb_mission_planner" type="mission_planner_node.py" name="mission_planner_node" output="screen" args="$(arg mission_file_path)">
+    <rosparam file="$(arg config_file_path)" command="load" />
   </node>
 
   <group if="$(arg enable_viewer)">

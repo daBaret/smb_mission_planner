@@ -1,6 +1,9 @@
 frames:
   base: base_link
-  world: odom
+  reference: tracking_camera_odom
+
+topics:
+  waypoint: /move_base_simple/goal
 
 settings:
   distance_tolerance: 0.6
