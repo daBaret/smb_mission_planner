@@ -1,17 +1,12 @@
 #!/usr/bin/env python
-
-from numpy.core.numeric import roll
 import smach
 import rospy
 import tf
 import smach
-import smach_ros
 from geometry_msgs.msg import PoseStamped
-from nav_msgs.msg import Odometry
-import math
-from tf.transformations import euler_from_quaternion
 import tf2_ros
-from geometry_msgs.msg import Quaternion
+from actionlib_msgs.msg import GoalStatusArray
+from actionlib_msgs.msg import GoalStatus
 
 
 class MissionPlan():
@@ -41,21 +36,20 @@ class DefaultMission(smach.State):
         self.countdown_s = rospy.get_param('~settings/skip_countdown', 60)
         self.countdown_decrement_s = rospy.get_param(
             '~settings/skip_countdown_decrement', 1)
-        self.distance_to_waypoint_tolerance_m = rospy.get_param(
-            '~settings/distance_tolerance', 0.6)
-        self.angle_to_waypoint_tolerance_rad = rospy.get_param(
-            '~settings/angle_tolerance', 0.7)
 
         # Topics
         self.waypoint_topic = rospy.get_param(
             'topics/waypoint', '/move_base_simple/goal')
+        self.status_topic = rospy.get_param(
+            'topics/status', '/move_base/status')
 
         self.mission_data = mission_data
         self.waypoint_idx = 0
+        self.goal_status = 0
 
-        # Initialize tf listener
-        self.tfBuffer = tf2_ros.Buffer()
-        self.listener = tf2_ros.TransformListener(self.tfBuffer)
+        # Subscribe to move_base status
+        self.status_subscribrt = rospy.Subscriber(
+            self.status_topic, GoalStatusArray, self.statusCallback)
 
         self.waypoint_pose_publisher = rospy.Publisher(
             self.waypoint_topic, PoseStamped, queue_size=1)
@@ -77,6 +71,10 @@ class DefaultMission(smach.State):
         self.setWaypoint(
             current_waypoint['x_m'], current_waypoint['y_m'], current_waypoint['yaw_rad'])
         rospy.loginfo("Waypoint set: '" + current_waypoint_name + "'.")
+
+        while self.goal_status != GoalStatus.ACTIVE:
+            rospy.sleep(1)
+            rospy.loginfo_throttle(1, "Waiting for new waypoint to be processed")
 
         countdown_s = self.countdown_s
         while countdown_s and not rospy.is_shutdown():
@@ -123,23 +121,12 @@ class DefaultMission(smach.State):
         self.waypoint_y_m = y_m
         self.waypoint_yaw_rad = yaw_rad
 
+    def statusCallback(self, status_msgs):
+        self.goal_status = status_msgs.status_list[-1].status
+
     def reachedWaypointWithTolerance(self):
-        try:
-            trans = self.tfBuffer.lookup_transform(
-                self.base_frame, self.reference_frame, rospy.Time())
-        except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
-            rospy.logwarn("No estimated base pose received yet.")
-            return False
-        position_x = trans.transform.translation.x
-        position_y = trans.transform.translation.y
-        q = (trans.transform.rotation.x, trans.transform.rotation.y,
-             trans.transform.rotation.z, trans.transform.rotation.w)
-        roll, pitch, yaw = euler_from_quaternion(q)
-        distance_to_waypoint = math.sqrt(
-            pow(self.waypoint_x_m + position_x, 2) + pow(self.waypoint_y_m + position_y, 2))
-        angle_to_waypoint = abs(self.waypoint_yaw_rad + yaw)
-        distance_to_waypoint_satisfied = (
-            distance_to_waypoint <= self.distance_to_waypoint_tolerance_m)
-        angle_to_waypoint_satisfied = (
-            angle_to_waypoint <= self.angle_to_waypoint_tolerance_rad)
-        return (distance_to_waypoint_satisfied and angle_to_waypoint_satisfied)
+        if self.goal_status == GoalStatus.SUCCEEDED:
+            goal_reached = True
+        else:
+            goal_reached = False
+        return goal_reached

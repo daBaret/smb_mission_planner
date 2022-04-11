@@ -4,9 +4,8 @@ frames:
 
 topics:
   waypoint: /move_base_simple/goal
+  status: /move_base/status
 
 settings:
-  distance_tolerance: 0.6
-  angle_tolerance: 0.7
   skip_countdown: 60
   skip_countdown_decrement: 1
