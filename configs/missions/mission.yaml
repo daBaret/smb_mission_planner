@@ -1,4 +1,4 @@
-test_mission:
+mission:
   waypoint_1:
     x_m: 1
     y_m: 1
